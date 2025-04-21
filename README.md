@@ -45,6 +45,6 @@ A lightweight, browser-based code editor powered by **Monaco Editor** and **Pyod
 ## 📁 Installation
 
 ```bash
-git clone https://github.com/yourusername/smart-code-editor.git
-cd smart-code-editor
+git clone https://github.com/yourusername/smart-editor.git
+cd smart-editor
 # Open index.html in your browser
