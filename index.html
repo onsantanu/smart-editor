@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Smart Code Editor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #121212;
+      color: #f0f0f0;
+      font-family: 'Fira Code', monospace;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e1e1e;
+      padding: 20px;
+      text-align: center;
+      font-size: 1.8em;
+      font-weight: bold;
+      border-bottom: 2px solid #333;
+    }
+
+    .hero {
+      padding: 30px 20px;
+      text-align: center;
+      background: #181818;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .hero p {
+      max-width: 700px;
+      margin: 10px auto;
+      font-size: 1em;
+      color: #bbb;
+    }
+
+    .select-bar {
+      display: flex;
+      justify-content: flex-end;
+      padding: 10px 20px;
+      background: #1e1e1e;
+    }
+
+    .dropdown {
+      color: #fff;
+      background: #333;
+      border: 1px solid #555;
+      padding: 6px 10px;
+      border-radius: 5px;
+      font-family: inherit;
+      font-size: 0.95em;
+    }
+
+    #editor {
+      height: 60vh;
+    }
+
+    #output {
+      background: #1a1a1a;
+      padding: 15px;
+      color: #00e676;
+      font-size: 0.95em;
+      min-height: 100px;
+      font-family: "Fira Code", monospace;
+      overflow: auto;
+    }
+
+    .features {
+      background: #181818;
+      padding: 25px 20px;
+      text-align: center;
+    }
+
+    .features h2 {
+      margin-bottom: 15px;
+    }
+
+    .features ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .features li {
+      margin: 8px 0;
+      color: #bbb;
+    }
+
+    footer {
+      background: #1e1e1e;
+      padding: 10px;
+      text-align: center;
+      color: #666;
+      font-size: 0.85em;
+    }
+
+    @media (max-width: 600px) {
+      header { font-size: 1.4em; }
+      .select-bar { justify-content: center; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+</head>
+<body>
+
+<header>🧠 Smart Code Editor</header>
+
+<section class="hero">
+  <h1>Write. Validate. Learn.</h1>
+  <p>This lightweight browser-based editor lets users write Python and JavaScript code with real-time syntax validation — no server, no setup.</p>
+  <p>Perfect for online coding exams, training platforms, and interview portals where you want syntax-aware input without code execution.</p>
+</section>
+
+<div class="select-bar">
+  <select class="dropdown" id="languageSelect">
+    <option value="python">Python</option>
+    <option value="javascript">JavaScript</option>
+  </select>
+</div>
+
+<div id="editor"></div>
+<div id="output">💡 Output will appear here...</div>
+
+<section class="features">
+  <h2>🚀 Key Features</h2>
+  <ul>
+    <li>✅ Real-time syntax validation (Pyodide & JS runtime)</li>
+    <li>🎨 Developer-friendly UI with Monaco Editor</li>
+    <li>🌐 100% client-side (no code execution, no backend)</li>
+    <li>💾 Auto-saves code per language in local storage</li>
+    <li>📱 Fully responsive design for all devices</li>
+  </ul>
+</section>
+
+<footer>© 2025 Smart Code Editor | Built with ❤️ by Santanu</footer>
+
+<script type="module">
+  import * as monaco from "https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/+esm";
+
+  const editor = monaco.editor.create(document.getElementById("editor"), {
+    value: localStorage.getItem("code_python") || `def greet(name):\n    print("Hello", name)\n\ngreet("User")`,
+    language: "python",
+    theme: "vs-dark",
+    automaticLayout: true,
+    fontSize: 14,
+  });
+
+  const outputDiv = document.getElementById("output");
+  const langSelect = document.getElementById("languageSelect");
+  const pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/" });
+
+  function setErrors(message, line = 1) {
+    monaco.editor.setModelMarkers(editor.getModel(), "owner", [{
+      severity: monaco.MarkerSeverity.Error,
+      message,
+      startLineNumber: line,
+      endLineNumber: line,
+      startColumn: 1,
+      endColumn: 100
+    }]);
+  }
+
+  function clearErrors() {
+    monaco.editor.setModelMarkers(editor.getModel(), "owner", []);
+  }
+
+  async function validateCode(lang, code) {
+    clearErrors();
+    if (lang === "python") {
+      try {
+        await pyodide.runPythonAsync(`compile("""${code}""", "<input>", "exec")`);
+        outputDiv.textContent = "✅ No syntax errors found!";
+        outputDiv.style.color = "#00e676";
+      } catch (err) {
+        outputDiv.textContent = "❌ " + err.message;
+        outputDiv.style.color = "#ff5252";
+        const line = parseInt((err.message.match(/line (\d+)/) || [])[1] || 1);
+        setErrors(err.message, line);
+      }
+    } else if (lang === "javascript") {
+      try {
+        new Function(code);
+        outputDiv.textContent = "✅ No syntax errors found!";
+        outputDiv.style.color = "#00e676";
+      } catch (err) {
+        outputDiv.textContent = "❌ " + err.message;
+        outputDiv.style.color = "#ff5252";
+        const line = err.stack?.match(/<anonymous>:(\d+):/)?.[1] || 1;
+        setErrors(err.message, parseInt(line));
+      }
+    }
+  }
+
+  editor.onDidChangeModelContent(() => {
+    const lang = langSelect.value;
+    const code = editor.getValue();
+    localStorage.setItem("code_" + lang, code);
+    validateCode(lang, code);
+  });
+
+  langSelect.addEventListener("change", () => {
+    const lang = langSelect.value;
+    const code = localStorage.getItem("code_" + lang) || (lang === "javascript"
+      ? `function greet(name) {\n  console.log("Hello", name);\n}\n\ngreet("User");`
+      : `def greet(name):\n    print("Hello", name)\n\ngreet("User")`);
+    editor.setValue(code);
+    monaco.editor.setModelLanguage(editor.getModel(), lang);
+    validateCode(lang, code);
+  });
+
+  validateCode("python", editor.getValue());
+</script>
+</body>
+</html>
